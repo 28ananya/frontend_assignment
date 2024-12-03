@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import './App.css';
 
@@ -9,22 +9,29 @@ function App() {
   const [editingTask, setEditingTask] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");  // Success message state
 
-  const apiUrl = "https://your-app-name.onrender.com/api/todos"; // Use your actual Render URL here
-  // Updated to deployed backend URL
+  const apiUrl = "https://backend-assignment-zw78.onrender.com/api/todos";
+ // Ensure fallback for local testing
 
-  // Fetch tasks on component mount
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  const fetchTasks = async () => {
+  // Memoize the fetchTasks function using useCallback
+  const fetchTasks = useCallback(async () => {
     try {
       const response = await axios.get(apiUrl);
-      setTasks(response.data);
+      // Ensure the response data is an array
+      if (Array.isArray(response.data)) {
+        setTasks(response.data);
+      } else {
+        console.error("Fetched tasks are not in expected array format", response.data);
+        setTasks([]); // Fallback to an empty array if not an array
+      }
     } catch (error) {
       console.error("Error fetching tasks", error);
+      setTasks([]);  // Fallback to an empty array in case of error
     }
-  };
+  }, [apiUrl]); // Dependencies of fetchTasks
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);  // Use fetchTasks as a dependency
 
   const addTask = async () => {
     if (!taskText.trim()) {
@@ -111,33 +118,37 @@ function App() {
 
       {/* Display list of tasks */}
       <ul className="task-list">
-        {tasks.map((task) => (
-          <li key={task._id} className="task-item">
-            <h3>{task.title}</h3>
-            <p>{task.description}</p>
+        {Array.isArray(tasks) && tasks.length > 0 ? (
+          tasks.map((task) => (
+            <li key={task.id} className="task-item">
+              <h3>{task.title}</h3>
+              <p>{task.description}</p>
 
-            <div className="task-actions">
-              {/* Edit Button */}
-              <button
-                className="edit-button"
-                onClick={() => {
-                  setEditingTask(task._id);
-                  setTaskText(task.title);  // Populate input field with task title for editing
-                  setTaskDescription(task.description); // Populate description for editing
-                }}
-              >
-                Edit
-              </button>
-              {/* Delete Button */}
-              <button
-                className="delete-button"
-                onClick={() => deleteTask(task._id)}
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
+              <div className="task-actions">
+                {/* Edit Button */}
+                <button
+                  className="edit-button"
+                  onClick={() => {
+                    setEditingTask(task.id);
+                    setTaskText(task.title);  // Populate input field with task title for editing
+                    setTaskDescription(task.description); // Populate description for editing
+                  }}
+                >
+                  Edit
+                </button>
+                {/* Delete Button */}
+                <button
+                  className="delete-button"
+                  onClick={() => deleteTask(task.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            </li>
+          ))
+        ) : (
+          <p>No tasks available</p>  // Message when no tasks are available
+        )}
       </ul>
 
       {/* Button to delete all tasks */}
